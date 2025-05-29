@@ -24,6 +24,7 @@ export type EnrichmentCounts = {
   industry: { total: number; enriched: number };
   financial: { total: number; enriched: number };
   news: { total: number; enriched: number };
+  partners: { total: number; enriched: number }; // Add this line
 };
 
 export type ResearchState = {
@@ -47,6 +48,7 @@ export type ResearchState = {
     industry: boolean;
     financial: boolean;
     news: boolean;
+    partners: boolean; // Add this line
   };
   enrichmentCounts?: EnrichmentCounts;
   docCounts?: DocCounts;
@@ -73,4 +75,32 @@ export type ResearchStatusProps = {
   glassStyle: GlassStyle;
   loaderColor: string;
   statusRef: React.RefObject<HTMLDivElement>;
-}; 
+};
+
+// Add these type definitions
+export interface Query {
+  text: string;
+  category: string;
+  number?: number;
+}
+
+export interface StreamingQuery {
+  text: string;
+  category: string;
+  number?: number;
+  isComplete?: boolean;
+}
+
+export interface StreamingQueries {
+  [key: string]: StreamingQuery;
+}
+
+// Add ResearchQueriesProps interface
+export interface ResearchQueriesProps {
+  queries: Query[];
+  streamingQueries: StreamingQueries;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  isResetting: boolean;
+  glassStyle: string;
+}

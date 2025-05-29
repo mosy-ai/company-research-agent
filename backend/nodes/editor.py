@@ -64,7 +64,8 @@ class Editor:
             'company': 'company_briefing',
             'industry': 'industry_briefing',
             'financial': 'financial_briefing',
-            'news': 'news_briefing'
+            'news': 'news_briefing',
+            'partners': 'partners_briefing'  # Add this line to include partners
         }
 
         # Send briefing collection status
@@ -194,141 +195,94 @@ class Editor:
     
     async def compile_content(self, state: ResearchState, briefings: Dict[str, str], company: str) -> str:
         """Initial compilation of research sections."""
-        combined_content = "\n\n".join(content for content in briefings.values())
         
-        references = state.get('references', [])
-        reference_text = ""
-        if references:
-            logger.info(f"Found {len(references)} references to add during compilation")
-            
-            # Get pre-processed reference info from curator
-            reference_info = state.get('reference_info', {})
-            reference_titles = state.get('reference_titles', {})
-            
-            logger.info(f"Reference info from state: {reference_info}")
-            logger.info(f"Reference titles from state: {reference_titles}")
-            
-            # Use the references module to format the references section
-            reference_text = format_references_section(references, reference_info, reference_titles)
-            logger.info(f"Added {len(references)} references during compilation")
-        
-        # Use values from centralized context
-        company = self.context["company"]
-        industry = self.context["industry"]
-        hq_location = self.context["hq_location"]
-        
-        prompt = f"""You are compiling a comprehensive research report about {company}.
-
-Compiled briefings:
-{combined_content}
-
-Create a comprehensive and focused report on {company}, a {industry} company headquartered in {hq_location} that:
-1. Integrates information from all sections into a cohesive non-repetitive narrative
-2. Maintains important details from each section
-3. Logically organizes information and removes transitional commentary / explanations
-4. Uses clear section headers and structure
-
-Formatting rules:
-Strictly enforce this EXACT document structure:
-
-# {company} Research Report
+        # Get all briefing sections
+        company_briefing = briefings.get('company', '')
+        industry_briefing = briefings.get('industry', '')
+        financial_briefing = briefings.get('financial', '')
+        news_briefing = briefings.get('news', '')
+        partners_briefing = briefings.get('partners', '')  # Make sure partners section is included
+    
+        # Create a prompt for LLM with partners section included
+        prompt = f"""Compile this research into a professional company research report on {company}.
 
 ## Company Overview
-[Company content with ### subsections]
+{company_briefing}
 
 ## Industry Overview
-[Industry content with ### subsections]
+{industry_briefing}
 
 ## Financial Overview
-[Financial content with ### subsections]
+{financial_briefing}
+
+## Partnership Overview
+{partners_briefing}
 
 ## News
-[News content with ### subsections]
+{news_briefing}
 
 Return the report in clean markdown format. No explanations or commentary."""
-        
+    
+        # Initialize combined_content variable before the try block
+        combined_content = ""
+    
         try:
+            # Your existing code for calling the LLM
             response = await self.openai_client.chat.completions.create(
-                model="gpt-4.1",
+                model="gpt-4.1-mini", 
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an expert report editor that compiles research briefings into comprehensive company reports."
+                        "content": "You are an expert business analyst that creates comprehensive research reports."
                     },
                     {
                         "role": "user",
                         "content": prompt
                     }
                 ],
-                temperature=0,
-                stream=False
+                temperature=0.5,
             )
-            initial_report = response.choices[0].message.content.strip()
-            
-            # Append the references section after LLM processing
-            if reference_text:
-                initial_report = f"{initial_report}\n\n{reference_text}"
-            
-            return initial_report
+        
+            combined_content = response.choices[0].message.content
+            return combined_content.strip()
         except Exception as e:
             logger.error(f"Error in initial compilation: {e}")
             return (combined_content or "").strip()
         
     async def content_sweep(self, state: ResearchState, content: str, company: str) -> str:
         """Sweep the content for any redundant information."""
-        # Use values from centralized context
-        company = self.context["company"]
-        industry = self.context["industry"]
-        hq_location = self.context["hq_location"]
         
-        prompt = f"""You are an expert briefing editor. You are given a report on {company}.
+        # Process references from search results
+        from ..utils.references import process_references_from_search_results, format_references_section
+        
+        # Get references from search results
+        top_reference_urls, reference_titles, reference_info = process_references_from_search_results(state)
+        
+        # Format references section
+        references_section = format_references_section(top_reference_urls, reference_info, reference_titles)
+        
+        # If no references were found, add a placeholder
+        if not references_section:
+            references_section = "\n## References\n* No references found."
+    
+        prompt = f"""Clean up and refine this company research report on {company}.
 
-Current report:
 {content}
 
-1. Remove redundant or repetitive information
-2. Remove information that is not relevant to {company}, the {industry} company headquartered in {hq_location}.
-3. Remove sections lacking substantial content
-4. Remove any meta-commentary (e.g. "Here is the news...")
-
-Strictly enforce this EXACT document structure:
-
-## Company Overview
-[Company content with ### subsections]
-
-## Industry Overview
-[Industry content with ### subsections]
-
-## Financial Overview
-[Financial content with ### subsections]
-
-## News
-[News content with ### subsections]
-
-## References
-[References in MLA format - PRESERVE EXACTLY AS PROVIDED]
+{references_section}
 
 Critical rules:
 1. The document MUST start with "# {company} Research Report"
 2. The document MUST ONLY use these exact ## headers in this order:
    - ## Company Overview
-   - ## Industry Overview
+   - ## Industry Overview 
+   - ## Partnership Overview
    - ## Financial Overview
    - ## News
    - ## References
-3. NO OTHER ## HEADERS ARE ALLOWED
-4. Use ### for subsections in Company/Industry/Financial sections
-5. News section should only use bullet points (*), never headers
-6. Never use code blocks (```)
-7. Never use more than one blank line between sections
-8. Format all bullet points with *
-9. Add one blank line before and after each section/list
-10. DO NOT CHANGE the format of the references section
-
-Return the polished report in flawless markdown format. No explanation.
-
-Return the cleaned report in flawless markdown format. No explanations or commentary."""
-        
+3. Preserve the References section exactly as provided.
+"""
+    
         try:
             response = await self.openai_client.chat.completions.create(
                 model="gpt-4.1-mini", 
@@ -391,10 +345,42 @@ Return the cleaned report in flawless markdown format. No explanations or commen
             return (content or "").strip()
 
     async def run(self, state: ResearchState) -> ResearchState:
-        state = await self.compile_briefings(state)
-        # Ensure the Editor node's output is stored both top-level and under "editor"
-        if 'report' in state:
-            if 'editor' not in state or not isinstance(state['editor'], dict):
-                state['editor'] = {}
-            state['editor']['report'] = state['report']
+        """Run the editor process."""
+        # Get company name from state
+        company = state.get('company', 'Unknown Company')
+        
+        # Get briefings dictionary
+        briefings = state.get('briefings', {})
+        
+        # Make sure we have all briefings
+        if not briefings:
+            logger.warning("No briefings found in state")
+            briefings = {}
+        
+        # Compile content from briefings
+        compiled_content = await self.compile_content(state, briefings, company)
+        
+        # Final editing pass
+        final_report = await self.content_sweep(state, compiled_content, company)
+        
+        # Save the report to state
+        state['report'] = final_report
+        
+        # Also add a flag showing completion
+        state['report_generated'] = True
+        
+        # Send a status update via WebSocket
+        if websocket_manager := state.get('websocket_manager'):
+            if job_id := state.get('job_id'):
+                await websocket_manager.send_status_update(
+                    job_id=job_id,
+                    status="completed",
+                    message="Research report generated",
+                    result={
+                        "step": "Complete",
+                        "report": final_report
+                    }
+                )
+        
+        logger.info("Editor completed processing")
         return state

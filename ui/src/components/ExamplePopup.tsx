@@ -7,47 +7,60 @@ export const EXAMPLE_COMPANIES = [
     name: "Stripe",
     url: "stripe.com",
     hq: "San Francisco, CA",
-    industry: "Financial Technology"
+    industry: "Financial Technology",
+    partners: "Amazon, Shopify, Google Pay" // Add this line
   },
   {
     name: "Shopify",
     url: "shopify.com",
     hq: "Ottawa, Canada",
-    industry: "E-commerce"
+    industry: "E-commerce",
+    partners: "Meta, Google, TikTok" // Add this line
   },
   {
     name: "Notion",
     url: "notion.so",
     hq: "San Francisco, CA",
-    industry: "Productivity Software"
+    industry: "Productivity Software",
+    partners: "Slack, Figma, Zapier" // Add this line
   },
   {
     name: "Tesla",
     url: "tesla.com",
     hq: "Austin, TX",
-    industry: "Automotive & Energy"
+    industry: "Automotive & Energy",
+    partners: "Panasonic, CATL, LG Energy" // Add this line
   },
   {
     name: "Airbnb",
     url: "airbnb.com",
     hq: "San Francisco, CA",
-    industry: "Travel & Hospitality"
+    industry: "Travel & Hospitality",
+    partners: "Vrbo, Booking.com, Expedia" // Add this line
   },
   {
     name: "Slack",
     url: "slack.com",
     hq: "San Francisco, CA",
-    industry: "Business Communication"
+    industry: "Business Communication",
+    partners: "Salesforce, Google Workspace, Microsoft" // Add this line
   },
   {
     name: "Spotify",
     url: "spotify.com",
     hq: "Stockholm, Sweden",
-    industry: "Music Streaming"
+    industry: "Music Streaming",
+    partners: "Apple, Google, Samsung" // Add this line
   }
 ];
 
-export type ExampleCompany = typeof EXAMPLE_COMPANIES[0];
+export type ExampleCompany = {
+  name: string;
+  url: string;
+  hq: string;
+  industry: string;
+  partners: string;  // Add this to the type definition
+};
 
 export interface ExamplePopupProps {
   visible: boolean;
@@ -119,4 +132,4 @@ const ExamplePopup: React.FC<ExamplePopupProps> = ({
   );
 };
 
-export default ExamplePopup; 
+export default ExamplePopup;

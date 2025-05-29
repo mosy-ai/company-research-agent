@@ -1,5 +1,5 @@
 from langchain_core.messages import AIMessage
-from typing import Dict
+from typing import Dict, Any
 from ..classes import ResearchState
 from urllib.parse import urlparse, urljoin
 import logging
@@ -82,11 +82,40 @@ class Curator:
         
         return evaluated_docs
 
-    async def curate_data(self, state: ResearchState) -> ResearchState:
-        """Curate all collected data based on Tavily scores."""
+    # Fix the implementation of curate_data() to handle both calling patterns
+    async def curate_data(self, state: ResearchState, data_field: str = None, doc_type: str = None) -> Dict[str, Any]:
+        """
+        Curate data based on Tavily scores.
+        
+        Args:
+            state: Current research state
+            data_field: Optional field name to curate (e.g., 'partners_data')
+            doc_type: Optional document type for context (e.g., 'partnerships')
+            
+        Returns:
+            Dict containing curated documents
+        """
+        
+        # Initialize the relevant_docs variable with an empty dict in case it's not set later
+        relevant_docs = {}
+        
         company = state.get('company', 'Unknown Company')
         logger.info(f"Starting curation for company: {company}")
         
+        # Handle different call patterns
+        if isinstance(data_field, dict) and doc_type is not None:
+            # This handles: curate_data(state, partners_data, 'partnerships')
+            docs_to_curate = data_field
+            category_name = doc_type
+        elif isinstance(data_field, str):
+            # This handles: curate_data(state, 'financial_data')
+            docs_to_curate = state.get(data_field, {})
+            category_name = data_field.replace('_data', '')
+        else:
+            # Default case - curate all data types
+            docs_to_curate = {}
+            category_name = None
+
         # Send initial status update through WebSocket
         if websocket_manager := state.get('websocket_manager'):
             if job_id := state.get('job_id'):
@@ -101,7 +130,8 @@ class Curator:
                             "company": {"initial": 0, "kept": 0},
                             "industry": {"initial": 0, "kept": 0},
                             "financial": {"initial": 0, "kept": 0},
-                            "news": {"initial": 0, "kept": 0}
+                            "news": {"initial": 0, "kept": 0},
+                            "partners": {"initial": 0, "kept": 0}  # Partner initialization
                         }
                     }
                 )
@@ -119,7 +149,8 @@ class Curator:
             'financial_data': ('💰 Financial', 'financial'),
             'news_data': ('📰 News', 'news'),
             'industry_data': ('🏭 Industry', 'industry'),
-            'company_data': ('🏢 Company', 'company')
+            'company_data': ('🏢 Company', 'company'),
+            'partners_data': ('🤝 Partners', 'partners')  # This line is present
         }
 
         # Create all evaluation tasks upfront
@@ -150,6 +181,7 @@ class Curator:
         # Track document counts for each type
         doc_counts = {}
 
+        # For each data type in curation_tasks
         for data_field, emoji, doc_type, urls, docs in curation_tasks:
             msg.append(f"\n{emoji}: Found {len(docs)} documents")
 
@@ -168,6 +200,9 @@ class Curator:
 
             evaluated_docs = await self.evaluate_documents(state, docs, context)
 
+            # REMOVE the special case for partners here
+            # NO special handling for 'partners' - process it like any other category
+            
             if not evaluated_docs:
                 msg.append(f"  ⚠️ No relevant documents found")
                 doc_counts[data_field] = {"initial": len(docs), "kept": 0}
@@ -197,6 +232,11 @@ class Curator:
             # Store curated documents in state
             state[f'curated_{data_field}'] = relevant_docs
             
+            # Add in the curate_data method where it processes partners_data:
+            if data_field == 'partners_data':
+                logger.info(f"Processing partners data: found {len(data)} documents")
+                logger.info(f"Partners data: {list(data.keys())[:5] if data else 'None'}")
+
         # Process references using the references module
         top_reference_urls, reference_titles, reference_info = process_references_from_search_results(state)
         logger.info(f"Selected top {len(top_reference_urls)} references for the report")
@@ -222,12 +262,44 @@ class Curator:
                             "company": doc_counts.get('company_data', {"initial": 0, "kept": 0}),
                             "industry": doc_counts.get('industry_data', {"initial": 0, "kept": 0}),
                             "financial": doc_counts.get('financial_data', {"initial": 0, "kept": 0}),
-                            "news": doc_counts.get('news_data', {"initial": 0, "kept": 0})
+                            "news": doc_counts.get('news_data', {"initial": 0, "kept": 0}),
+                            "partners": doc_counts.get('partners_data', {"initial": 0, "kept": 0})  # Add this line
                         }
                     }
                 )
 
-        return state
+        # Store curated documents in state
+        relevant_docs = relevant_docs if 'relevant_docs' in locals() else {}
+        if data_field and isinstance(data_field, str):
+            state[f'curated_{data_field}'] = relevant_docs
+        
+        # Return the curated documents (not the entire state)
+        return relevant_docs
 
-    async def run(self, state: ResearchState) -> ResearchState:
-        return await self.curate_data(state)
+    async def run(self, state: ResearchState) -> Dict[str, Any]:
+        """Run the curation process for the given research state."""
+        # Curate main data categories and get the curated data dictionaries
+        curated_financial_data = await self.curate_data(state, 'financial_data')
+        curated_news_data = await self.curate_data(state, 'news_data')
+        curated_industry_data = await self.curate_data(state, 'industry_data')
+        curated_company_data = await self.curate_data(state, 'company_data')
+        curated_partners_data = await self.curate_data(state, 'partners_data')  # Process partners like other categories
+        
+        # Remove special handling for partners - no extra checks needed
+        # If 'partners_data' exists in state, it will be processed like any other category
+        
+        # Store curated data in state (in case it wasn't already stored)
+        state['curated_financial_data'] = curated_financial_data
+        state['curated_news_data'] = curated_news_data
+        state['curated_industry_data'] = curated_industry_data
+        state['curated_company_data'] = curated_company_data
+        state['curated_partners_data'] = curated_partners_data
+        
+        # Return the curated data dictionaries
+        return {
+            'curated_financial_data': curated_financial_data,
+            'curated_news_data': curated_news_data,
+            'curated_industry_data': curated_industry_data,
+            'curated_company_data': curated_company_data,
+            'curated_partners_data': curated_partners_data,
+        }

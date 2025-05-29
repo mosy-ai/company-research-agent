@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Building2, Factory, Globe, Loader2, Search } from 'lucide-react';
+import { Building2, Factory, Globe, Loader2, Search, Users } from 'lucide-react';
 import LocationInput from './LocationInput';
 import ExamplePopup, { ExampleCompany } from './ExamplePopup';
 
@@ -8,6 +8,7 @@ interface FormData {
   companyUrl: string;
   companyHq: string;
   companyIndustry: string;
+  companyPartners: string; // Add this line
 }
 
 interface ResearchFormProps {
@@ -31,6 +32,7 @@ const ResearchForm: React.FC<ResearchFormProps> = ({
     companyUrl: "",
     companyHq: "",
     companyIndustry: "",
+    companyPartners: "", // Add this line
   });
   
   // Animation states
@@ -63,6 +65,7 @@ const ResearchForm: React.FC<ResearchFormProps> = ({
           companyUrl: "",
           companyHq: "",
           companyIndustry: "",
+          companyPartners: "", // Add this line
         });
         
         // Show the example suggestion again
@@ -103,7 +106,8 @@ const ResearchForm: React.FC<ResearchFormProps> = ({
         companyName: example.name,
         companyUrl: example.url,
         companyHq: example.hq,
-        companyIndustry: example.industry
+        companyIndustry: example.industry,
+        companyPartners: example.partners, // Changed from "" to example.partners
       };
       
       // Update form data
@@ -233,6 +237,33 @@ const ResearchForm: React.FC<ResearchFormProps> = ({
                 />
               </div>
             </div>
+
+            {/* Company Partners */}
+            <div className="relative group">
+              <label
+                htmlFor="companyPartners"
+                className="block text-base font-medium text-gray-700 mb-2.5 transition-all duration-200 group-hover:text-gray-900 font-['DM_Sans']"
+              >
+                Company Partners
+              </label>
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-gray-50/0 via-gray-100/50 to-gray-50/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-lg"></div>
+                <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 stroke-[#468BFF] transition-all duration-200 group-hover:stroke-[#8FBCFA] z-10" strokeWidth={1.5} />
+                <input
+                  id="companyPartners"
+                  type="text"
+                  value={formData.companyPartners}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      companyPartners: e.target.value,
+                    }))
+                  }
+                  className={`${glassStyle.input} transition-all duration-300 focus:border-[#468BFF]/50 focus:ring-1 focus:ring-[#468BFF]/50 group-hover:border-[#468BFF]/30 bg-white/80 backdrop-blur-sm text-lg py-4 pl-12 font-['DM_Sans']`}
+                  placeholder="e.g. Microsoft, Amazon"
+                />
+              </div>
+            </div>
           </div>
 
           <button
@@ -261,4 +292,4 @@ const ResearchForm: React.FC<ResearchFormProps> = ({
   );
 };
 
-export default ResearchForm; 
+export default ResearchForm;

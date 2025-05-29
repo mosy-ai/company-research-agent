@@ -41,4 +41,17 @@ class Collector:
         return state
 
     async def run(self, state: ResearchState) -> ResearchState:
-        return await self.collect(state)
+        # Collect research data
+        await self.collect(state)
+        
+        # Make sure partners_data is included
+        partners_data = state.get('partners_data', {})
+        
+        # Return with partners_data included
+        return {
+            'financial_data': state.get('financial_data', {}),
+            'news_data': state.get('news_data', {}),
+            'industry_data': state.get('industry_data', {}),
+            'company_data': state.get('company_data', {}),
+            'partners_data': partners_data,  # Make sure this is included
+        }

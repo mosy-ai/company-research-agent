@@ -1,23 +1,38 @@
 from langchain_core.messages import SystemMessage
 from langgraph.graph import StateGraph
-from typing import Dict, Any, AsyncIterator
+from typing import Dict, Any, AsyncIterator, Optional
 import logging
 
 from .classes.state import InputState
 from .nodes import GroundingNode
 from .nodes.researchers import (FinancialAnalyst, NewsScanner, 
                                IndustryAnalyzer, CompanyAnalyzer)
+from .nodes.researchers.partners import PartnerAnalyzer
 from .nodes.collector import Collector
 from .nodes.curator import Curator
 from .nodes.enricher import Enricher
 from .nodes.briefing import Briefing
 from .nodes.editor import Editor
+from .services.websocket_manager import WebSocketManager  # Add this import to fix the error
 
 logger = logging.getLogger(__name__)
 
 class Graph:
-    def __init__(self, company=None, url=None, hq_location=None, industry=None,
-                 websocket_manager=None, job_id=None):
+    def __init__(
+        self,
+        company: str,
+        url: Optional[str] = None,
+        industry: Optional[str] = None,
+        hq_location: Optional[str] = None,
+        partners: Optional[str] = None,  # Add this parameter
+        websocket_manager: Optional[WebSocketManager] = None,
+        job_id: Optional[str] = None,
+    ):
+        self.company = company
+        self.url = url
+        self.industry = industry
+        self.hq_location = hq_location
+        self.partners = partners  # Store the partners
         self.websocket_manager = websocket_manager
         self.job_id = job_id
         
@@ -27,6 +42,7 @@ class Graph:
             company_url=url,
             hq_location=hq_location,
             industry=industry,
+            partners=partners,  # Add this line to include partners in input state
             websocket_manager=websocket_manager,
             job_id=job_id,
             messages=[
@@ -34,8 +50,10 @@ class Graph:
             ]
         )
 
-        # Initialize nodes with WebSocket manager and job ID
+        # Initialize all workflow nodes
         self._init_nodes()
+        
+        # Build the workflow
         self._build_workflow()
 
     def _init_nodes(self):
@@ -50,6 +68,7 @@ class Graph:
         self.enricher = Enricher()
         self.briefing = Briefing()
         self.editor = Editor()
+        self.partner_analyzer = PartnerAnalyzer()
 
     def _build_workflow(self):
         """Configure the state graph workflow"""
@@ -66,16 +85,18 @@ class Graph:
         self.workflow.add_node("enricher", self.enricher.run)
         self.workflow.add_node("briefing", self.briefing.run)
         self.workflow.add_node("editor", self.editor.run)
+        self.workflow.add_node("partner_analyzer", self.partner_analyzer.run)
 
         # Configure workflow edges
         self.workflow.set_entry_point("grounding")
         self.workflow.set_finish_point("editor")
         
         research_nodes = [
+            "company_analyst",
             "financial_analyst", 
             "news_scanner",
-            "industry_analyst", 
-            "company_analyst"
+            "industry_analyst",
+            "partner_analyzer"
         ]
 
         # Connect grounding to all research nodes
@@ -119,3 +140,15 @@ class Graph:
     def compile(self):
         graph = self.workflow.compile()
         return graph
+
+    def get_initial_state(self) -> InputState:
+        """Return the initial state for the graph."""
+        return {
+            "company": self.company,
+            "company_url": self.url,
+            "industry": self.industry,
+            "hq_location": self.hq_location,
+            "partners": self.partners,  # Include partners in the initial state
+            "websocket_manager": self.websocket_manager,
+            "job_id": self.job_id
+        }

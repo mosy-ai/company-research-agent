@@ -148,7 +148,8 @@ export const resetResearch = (
         company: false,
         industry: false,
         financial: false,
-        news: false
+        news: false,
+        partners: false  // Add this line to include partners
       }
     });
     setPdfUrl(null);
@@ -161,4 +162,4 @@ export const resetResearch = (
     setIsResetting(false);
     setHasScrolledToStatus(false); // Reset scroll flag when resetting research
   }, 300); // Match this with CSS transition duration
-}; 
+};

@@ -6,6 +6,7 @@ type EnrichmentCounts = {
   industry: { total: number; enriched: number };
   financial: { total: number; enriched: number };
   news: { total: number; enriched: number };
+  partners: { total: number; enriched: number }; // Add partners
 };
 
 interface CurationExtractionProps {
@@ -51,24 +52,27 @@ const CurationExtraction: React.FC<CurationExtractionProps> = ({
       <div className={`overflow-hidden transition-all duration-500 ease-in-out ${
         isExpanded ? 'mt-4 max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
       }`}>
-        <div className="grid grid-cols-4 gap-4">
-          {['company', 'industry', 'financial', 'news'].map((category) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 px-1">
+          {['company', 'industry', 'financial', 'news', 'partners'].map((category) => {
             const counts = enrichmentCounts?.[category as keyof EnrichmentCounts];
             return (
               <div key={category} className="backdrop-blur-2xl bg-white/95 border border-gray-200/50 rounded-xl p-3 shadow-none">
                 <h3 className="text-sm font-medium text-gray-700 mb-2 capitalize">{category}</h3>
                 <div className="text-gray-900">
                   <div className="text-2xl font-bold mb-1">
-                    {counts ? (
+                    {counts && counts.total > 0 ? (
                       <span className="text-[#468BFF]">
-                        {counts.enriched}
+                        {counts.enriched || 0}
                       </span>
                     ) : (
+                      // Show actual zeros instead of loading for categories that just have no documents
+                      counts && counts.total === 0 ? 
+                      <span className="text-[#468BFF]">0</span> :
                       <Loader2 className="animate-spin h-6 w-6 mx-auto loader-icon" style={{ stroke: loaderColor }} />
                     )}
                   </div>
                   <div className="text-sm text-gray-600">
-                    {counts ? (
+                    {counts && counts.total >= 0 ? (
                       `selected from ${counts.total}`
                     ) : (
                       "waiting..."
@@ -90,4 +94,4 @@ const CurationExtraction: React.FC<CurationExtractionProps> = ({
   );
 };
 
-export default CurationExtraction; 
+export default CurationExtraction;

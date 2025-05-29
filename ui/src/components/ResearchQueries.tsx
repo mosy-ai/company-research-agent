@@ -1,6 +1,32 @@
 import React from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { ResearchQueriesProps } from '../types';
+
+// Define types locally if they're not available in the types file
+interface Query {
+  text: string;
+  category: string;
+  number?: number;
+}
+
+interface StreamingQuery {
+  text: string;
+  category: string;
+  number?: number;
+  isComplete?: boolean;
+}
+
+interface StreamingQueries {
+  [key: string]: StreamingQuery;
+}
+
+interface ResearchQueriesProps {
+  queries: Query[];
+  streamingQueries: StreamingQueries;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  isResetting: boolean;
+  glassStyle: string;
+}
 
 const ResearchQueries: React.FC<ResearchQueriesProps> = ({
   queries,
@@ -37,7 +63,7 @@ const ResearchQueries: React.FC<ResearchQueriesProps> = ({
         isExpanded ? 'mt-4 max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
       }`}>
         <div className="grid grid-cols-2 gap-4">
-          {['company', 'industry', 'financial', 'news'].map((category) => (
+          {['company', 'industry', 'financial', 'news', 'partners'].map((category) => (
             <div key={category} className={`${glassStyle} rounded-xl p-3`}>
               <h3 className="text-base font-medium text-gray-900 mb-3 capitalize">
                 {category.charAt(0).toUpperCase() + category.slice(1)} Queries
@@ -68,11 +94,11 @@ const ResearchQueries: React.FC<ResearchQueriesProps> = ({
       
       {!isExpanded && (
         <div className="mt-2 text-sm text-gray-600">
-          {queries.length} queries generated across {['company', 'industry', 'financial', 'news'].length} categories
+          {queries.length} queries generated across {['company', 'industry', 'financial', 'news', 'partners'].length} categories
         </div>
       )}
     </div>
   );
 };
 
-export default ResearchQueries; 
+export default ResearchQueries;

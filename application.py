@@ -64,6 +64,7 @@ class ResearchRequest(BaseModel):
     company_url: str | None = None
     industry: str | None = None
     hq_location: str | None = None
+    partners: str | None = None
 
 class PDFGenerationRequest(BaseModel):
     report_content: str
@@ -105,21 +106,18 @@ async def research(data: ResearchRequest):
 
 async def process_research(job_id: str, data: ResearchRequest):
     try:
-        if mongodb:
-            mongodb.create_job(job_id, data.dict())
-        await asyncio.sleep(1)  # Allow WebSocket connection
-
-        await manager.send_status_update(job_id, status="processing", message="Starting research")
-
+        # Create and run research graph
         graph = Graph(
             company=data.company,
             url=data.company_url,
             industry=data.industry,
             hq_location=data.hq_location,
-            websocket_manager=manager,
+            partners=data.partners,  # Ensure partners is passed here
+            websocket_manager=manager,  # Use the global manager variable
             job_id=job_id
         )
 
+        # Execute the graph and update the state
         state = {}
         async for s in graph.run(thread={}):
             state.update(s)
@@ -163,15 +161,21 @@ async def process_research(job_id: str, data: ResearchRequest):
             )
 
     except Exception as e:
-        logger.error(f"Research failed: {str(e)}")
+        logger.error(f"Error processing research for job {job_id}: {str(e)}", exc_info=True)
+        job_status[job_id].update({
+            "status": "failed",
+            "error": str(e),
+            "last_update": datetime.now().isoformat()
+        })
+        if mongodb:
+            mongodb.update_job(job_id=job_id, status="failed", error=str(e))
         await manager.send_status_update(
             job_id=job_id,
             status="failed",
-            message=f"Research failed: {str(e)}",
+            message="Research processing failed",
             error=str(e)
         )
-        if mongodb:
-            mongodb.update_job(job_id=job_id, status="failed", error=str(e))
+
 @app.get("/")
 async def ping():
     return {"message": "Alive"}
@@ -255,6 +259,20 @@ async def generate_pdf(data: GeneratePDFRequest):
             raise HTTPException(status_code=500, detail=result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/report/{job_id}")
+async def get_report(job_id: str):
+    """Retrieve a research report for a specific job ID."""
+    if job_id not in job_status:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    state = job_status[job_id]
+    report = state.get('report', None)
+    
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found or not yet generated")
+    
+    return {"report": report}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

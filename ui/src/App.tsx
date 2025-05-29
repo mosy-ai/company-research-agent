@@ -50,8 +50,17 @@ function App() {
       company: false,
       industry: false,
       financial: false,
-      news: false
-    }
+      news: false,
+      partners: false // Add this line
+    },
+    enrichmentCounts: {
+      company: { total: 0, enriched: 0 },
+      industry: { total: 0, enriched: 0 },
+      financial: { total: 0, enriched: 0 },
+      news: { total: 0, enriched: 0 },
+      partners: { total: 0, enriched: 0 }  // Make sure this is added
+    },
+    docCounts: {}
   });
   const [originalCompanyName, setOriginalCompanyName] = useState<string>("");
 
@@ -136,8 +145,17 @@ function App() {
           company: false,
           industry: false,
           financial: false,
-          news: false
-        }
+          news: false,
+          partners: false // Add this line
+        },
+        enrichmentCounts: {
+          company: { total: 0, enriched: 0 },
+          industry: { total: 0, enriched: 0 },
+          financial: { total: 0, enriched: 0 },
+          news: { total: 0, enriched: 0 },
+          partners: { total: 0, enriched: 0 }  // Make sure this is added
+        },
+        docCounts: {}
       });
       setPdfUrl(null);
       setCurrentPhase(null);
@@ -249,23 +267,23 @@ function App() {
         }
 
         // Handle completion
-        if (statusData.status === "completed") {
-          setCurrentPhase('complete');
-          setIsComplete(true);
-          setIsResearching(false);
-          setStatus({
-            step: "Complete",
-            message: "Research completed successfully"
-          });
+        if (statusData.status === "completed" && statusData.result?.report) {
           setOutput({
             summary: "",
             details: {
               report: statusData.result.report,
             },
           });
+          setStatus({
+            step: "Complete",
+            message: "Research completed successfully"
+          });
+          setIsComplete(true);
+          setIsResearching(false);
+          setCurrentPhase('complete');
           setHasFinalReport(true);
           
-          // Clear polling interval if it exists
+          // Clear polling interval
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current);
             pollingIntervalRef.current = null;
@@ -549,7 +567,8 @@ function App() {
                 company: false,
                 industry: false,
                 financial: false,
-                news: false
+                news: false,
+                partners: false // Add this line
               }
             }));
           }
@@ -587,6 +606,7 @@ function App() {
     companyUrl: string;
     companyHq: string;
     companyIndustry: string;
+    companyPartners?: string; // Added this property with optional type
   }) => {
 
     // Clear any existing errors first
@@ -626,6 +646,7 @@ function App() {
         company_url: formattedCompanyUrl,
         industry: formData.companyIndustry || undefined,
         hq_location: formData.companyHq || undefined,
+        partners: formData.companyPartners || undefined, // Add this line
       };
 
       const response = await fetch(url, {
