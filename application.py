@@ -64,7 +64,7 @@ class ResearchRequest(BaseModel):
     company_url: str | None = None
     industry: str | None = None
     hq_location: str | None = None
-    partners: str | None = None
+    partners: str | None = None  # Added partners field
 
 class PDFGenerationRequest(BaseModel):
     report_content: str
@@ -106,14 +106,21 @@ async def research(data: ResearchRequest):
 
 async def process_research(job_id: str, data: ResearchRequest):
     try:
+        # Re-add the pre-create initialization and initial status update
+        if mongodb:
+            mongodb.create_job(job_id, data.dict())
+        await asyncio.sleep(1)  # Allow WebSocket connection
+        
+        await manager.send_status_update(job_id, status="processing", message="Starting research")
+        
         # Create and run research graph
         graph = Graph(
             company=data.company,
             url=data.company_url,
             industry=data.industry,
             hq_location=data.hq_location,
-            partners=data.partners,  # Ensure partners is passed here
-            websocket_manager=manager,  # Use the global manager variable
+            partners=data.partners,  # Pass partners to Graph
+            websocket_manager=manager,
             job_id=job_id
         )
 
