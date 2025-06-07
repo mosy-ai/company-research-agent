@@ -154,8 +154,8 @@ class Curator:
 
         for data_field, emoji, doc_type, urls, docs in curation_tasks:
             msg.append(f"\n{emoji}: Found {len(docs)} documents")
-
             if websocket_manager := state.get('websocket_manager'):
+
                 if job_id := state.get('job_id'):
                     await websocket_manager.send_status_update(
                         job_id=job_id,
